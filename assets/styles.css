@@ -15,7 +15,8 @@
 div.info-container {
     height: calc((100vh - 70px - 32px)/2);
     width: calc((100vw - 64px)/3);
-    margin-top: 16px;
+    margin-bottom: 16px;
     padding: 4px;
     border: 1px solid white;
+    overflow-x: auto
 }
