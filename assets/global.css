@@ -1,0 +1,24 @@
+*
+/* aplica essas características para todo o documento */
+{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    color: white;
+    background-color: black;
+}
+
+html {
+    height: 100%;
+    width: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+div {
+    display: flex;
+    flex-direction: column;
+}

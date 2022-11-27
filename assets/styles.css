@@ -1,0 +1,21 @@
+#title {
+    text-align: center;
+    height: 70px;
+    justify-content: center;
+    display: flex;
+    flex-direction: column;
+}
+
+#main-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+}
+
+div.info-container {
+    height: calc((100vh - 70px - 32px)/2);
+    width: calc((100vw - 64px)/3);
+    margin-top: 16px;
+    padding: 4px;
+    border: 1px solid white;
+}

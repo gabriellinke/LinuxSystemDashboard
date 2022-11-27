@@ -1,66 +1,79 @@
-from tkinter import *
+# Documentações úteis:
+# https://dash.plotly.com/live-updates
+# https://dash.plotly.com/external-resources
+import datetime
+
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
+import plotly
 import threading
 import time
-from datetime import datetime
-from ReadFile import read_key
-TOP_BG_COLOR = '#1b2838'
-BODY_BG_COLOR='#2a475e'
-TEXT_COLOR='#FFFFFF'
+import os
 
-print(datetime.now().strftime('%A, %d %B %Y\n'))
-print("LOADING, PLEASE WAIT...\n")
+uptime = ""
+meminfo = ""
+command = ""
 
-# CREATE WINDOW - RESIZE FALSE - SIZE - TITLE CARD
-root = Tk()
-root.resizable(False, False)
-root.geometry('1280x720')
-root.title("Dashboard")
-root.configure(bg='#c7d5e0')
+def update_uptime():
+    while(1):
+        global uptime
+        with open('/proc/uptime' , 'r') as live_key_file_loc:
+            live_token = live_key_file_loc.read()
+        uptime = (live_token.split(' ')[0])
+        time.sleep(1)
 
-uptime = StringVar()
-uptime.set('0')
+def update_memory_info():
+    while(1):
+        global meminfo
+        with open('/proc/meminfo' , 'r') as live_key_file_loc:
+            live_token = live_key_file_loc.read()
+        meminfo = live_token
+        time.sleep(1)
 
-# DRAW TOP BLUE BAR - DRAW TITLE - DRAW DATETIME
-top_bg = Canvas(root, bg=TOP_BG_COLOR, highlightthickness=0).place(x=0, y=0, width=1280, height=60)
-Label(top_bg, text='Dashboard', font='Montserrat 25', bg=TOP_BG_COLOR, fg='white').place(x=15, y=3)
-Label(top_bg, text=datetime.now().strftime('%A, %d %B %Y'), font='Montserrat 20', bg=TOP_BG_COLOR, fg='white').place(
-    x=820, y=8)
+def run_command():
+    while(1):
+        global command
+        command = os.popen('ls /proc').read()
+        time.sleep(1)
 
-# Sistema (hardware e SO)
-system_box = Canvas(root, width=400, height=600, bg=BODY_BG_COLOR, highlightthickness=0).place(x=20, y=100)
-system_box_top = Canvas(root, width=400, height=20, bg=TOP_BG_COLOR, highlightthickness=0).place(x=20, y=80)
-Label(system_box, textvariable=uptime, font='Montserrat 25', bg=TOP_BG_COLOR, fg='white').place(x=25, y=105)
-Label(system_box_top, text='Sistema (hardware e SO)', font='Montserrat 7 bold', bg=TOP_BG_COLOR,
-         fg=TEXT_COLOR).place(x=25, y=82)
+uptimeThread = threading.Thread(target=update_uptime)
+uptimeThread.start()
+meminfoThread = threading.Thread(target=update_memory_info)
+meminfoThread.start()
+commandThread = threading.Thread(target=run_command)
+commandThread.start()
 
-# Processos/Threads
-process_box = Canvas(root, width=400, height=280, bg=BODY_BG_COLOR, highlightthickness=0).place(x=440, y=100)
-process_box_top = Canvas(root, width=400, height=20, bg=TOP_BG_COLOR, highlightthickness=0).place(x=440, y=80)
-Label(process_box_top, text='Processos/Threads', font='Montserrat 7 bold', bg=TOP_BG_COLOR,
-         fg=TEXT_COLOR).place(x=445, y=82)
+app = dash.Dash(__name__)
+app.layout = html.Div(
+    html.Div([
+        html.H1('Dashboard', id='title'),
+        html.Tbody(id='main-container'),
+        dcc.Interval(
+            id='interval-component',
+            interval=1*1000, # in milliseconds
+            n_intervals=0
+        )
+    ])
+)
 
-# Sistema de Arquivo
-filesystem_box = Canvas(root, width=400, height=280, bg=BODY_BG_COLOR, highlightthickness=0).place(x=440, y=420)
-filesystem_box_top = Canvas(root, width=400, height=20, bg=TOP_BG_COLOR, highlightthickness=0).place(x=440, y=400)
-Label(filesystem_box_top, text='Sistema de Arquivo', font='Montserrat 7 bold', bg=TOP_BG_COLOR,
-         fg=TEXT_COLOR).place(x=445, y=402)
+@app.callback(Output('main-container', 'children'),
+              Input('interval-component', 'n_intervals'))
+def update_metrics(n):
+    return [
+        html.Div([
+            html.Div('Uptime: '+uptime, className='info-container'),
+            html.Div('Uptime: '+uptime, className='info-container')
+        ]),
+        html.Div([
+            html.Div('Meminfo: '+meminfo, className='info-container'),
+            html.Div('Meminfo: '+meminfo, className='info-container')
+        ]),
+        html.Div([
+            html.Div('Comando: '+command, className='info-container'),
+            html.Div('Comando: '+command, className='info-container')
+        ])
+    ]
 
-# Memória
-memory_box = Canvas(root, width=400, height=280, bg=BODY_BG_COLOR, highlightthickness=0).place(x=860, y=100)
-memory_box_top = Canvas(root, width=400, height=20, bg=TOP_BG_COLOR, highlightthickness=0).place(x=860, y=80)
-Label(memory_box_top, text='Memória', font='Montserrat 7 bold', bg=TOP_BG_COLOR,
-         fg=TEXT_COLOR).place(x=865, y=82)
-
-# Terminal
-terminal_box = Canvas(root, width=400, height=280, bg=BODY_BG_COLOR, highlightthickness=0).place(x=860, y=420)
-terminal_box_top = Canvas(root, width=400, height=20, bg=TOP_BG_COLOR, highlightthickness=0).place(x=860, y=400)
-Label(terminal_box_top, text='Terminal', font='Montserrat 7 bold', bg=TOP_BG_COLOR,
-         fg=TEXT_COLOR).place(x=865, y=402)
-
-print('\nDRAWING DASHBOARD')
-# MAINLOOP
-
-while(1):
-    # time.sleep(1)
-    uptime.set(read_key())
-    root.update_idletasks()
+if __name__ == '__main__':
+    app.run_server(debug=True)
