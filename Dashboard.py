@@ -1,6 +1,7 @@
 # Documentações úteis:
 # https://dash.plotly.com/live-updates
 # https://dash.plotly.com/external-resources
+# https://www.tecmint.com/commands-to-collect-system-and-hardware-information-in-linux/#:~:text=How%20to%20View%20Linux%20System,kernel%20name%20of%20your%20system.&text=To%20view%20your%20network%20hostname,the%20uname%20command%20as%20shown.
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
@@ -13,6 +14,9 @@ import plotly.graph_objects as go
 
 meminfo = ""
 command = ""
+top = ""
+hardware_info = {}
+system_info = {}
 memory = {}
 
 def update_memory_info():
@@ -34,10 +38,39 @@ def run_command():
         command = os.popen('ls /proc').read()
         time.sleep(1)
 
+def run_top():
+    global top
+    while(1):
+        os.popen('top -b -n 1 > top_out.txt')
+        time.sleep(1.5)
+        top = os.popen('cat top_out.txt').read()
+        # sed '2q;d' top_out.txt - pega a linha 2 do top
+
+def get_hardware_info():
+    global hardware_info
+    hardware_info["memory"] = os.popen('lshw -short | grep memory | tr -s \' \' | cut -d \' \' -f3- | sed \'1q;d\'').read()
+    hardware_info["processor"] = os.popen('lshw -short | grep processor | tr -s \' \' | cut -d \' \' -f3- | sed \'1q;d\'').read()
+    hardware_info["graphic"] = os.popen('lshw -short | grep display | tr -s \' \' | cut -d \' \' -f3- | sed \'1q;d\'').read()
+
+def get_system_info():
+    global system_info
+    system_info["kernel-name"] = os.popen('uname -s').read()
+    system_info["nodename"] = os.popen('uname -n').read()
+    system_info["kernel-release"] = os.popen('uname -r').read()
+    system_info["kernel-version"] = os.popen('uname -v').read()
+    system_info["machine"] = os.popen('uname -m').read()
+    system_info["processor"] = os.popen('uname -p').read()
+    system_info["hardware-platform"] = os.popen('uname -i').read()
+    system_info["operating-system"] = os.popen('uname -o').read()
+
 meminfoThread = threading.Thread(target=update_memory_info)
 meminfoThread.start()
 commandThread = threading.Thread(target=run_command)
 commandThread.start()
+topThread = threading.Thread(target=run_top)
+topThread.start()
+get_hardware_info()
+get_system_info()
 
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 app.layout = html.Div(
@@ -61,6 +94,21 @@ def get_memory_info_container():
         dcc.Graph(id="graph"),
     ], className='info-container')
 
+def get_hardware_and_system_info_container():
+    return html.Div([
+        html.H3('Informações de hardware e sistema', className='info-container-title'),
+        html.H4('Hardware', className='info-container-subtitle'),
+        html.Div(f'Memória RAM: {hardware_info["memory"]}'),
+        html.Div(f'Processador: {hardware_info["processor"]}'),
+        html.Div(f'Placa de vídeo: {hardware_info["graphic"]}'),
+        html.H4('Sistema', className='info-container-subtitle', style={'marginTop': '12px'}),
+        html.Div(f'Nome do kernel: {system_info["kernel-name"]}'),
+        html.Div(f'Nome do nó da máquina na rede: {system_info["nodename"]}'),
+        html.Div(f'Versão de lançamento do Kernel: {system_info["kernel-release"]}'),
+        html.Div(f'Data de criação do Kernel: {system_info["kernel-version"]}'),
+        html.Div(f'Sistema operacional: {system_info["operating-system"]}'),
+    ], className='info-container')
+
 @app.callback(Output('main-container', 'children'),
               Input('interval-component', 'n_intervals'))
 def update_info(n):
@@ -70,11 +118,11 @@ def update_info(n):
         ]),
         html.Div([
             html.Div(command, className='info-container'),
-            html.Div('Meminfo: '+meminfo, className='info-container')
+            html.Div(top, className='info-container')
         ]),
         html.Div([
             get_memory_info_container(),
-            html.Div('Informações de hardware e sistema', className='info-container')
+            get_hardware_and_system_info_container(),
         ])
     ]
 
