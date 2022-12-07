@@ -18,6 +18,12 @@ top = ""
 hardware_info = {}
 system_info = {}
 memory = {}
+swap = {}
+
+# date
+# lsusb
+# sysinfo - uptime e loadavg - acho que já temos essas infos do top
+# Uso de disco - df -> fazer gŕafico com percentual usado de cada disco - qual o disco, se é HD ou SSD
 
 def update_memory_info():
     global meminfo
@@ -30,6 +36,9 @@ def update_memory_info():
         memory["used"] = int(os.popen('free -m  | grep ^Mem | tr -s \' \' | cut -d \' \' -f3').read())
         memory["free"] = int(os.popen('free -m  | grep ^Mem | tr -s \' \' | cut -d \' \' -f4').read())
         memory["cache"] = int(os.popen('free -m  | grep ^Mem | tr -s \' \' | cut -d \' \' -f6').read())
+        swap["total"] = int(os.popen('free -m  | grep ^Swap | tr -s \' \' | cut -d \' \' -f2').read())
+        swap["used"] = int(os.popen('free -m  | grep ^Swap | tr -s \' \' | cut -d \' \' -f3').read())
+        swap["free"] = int(os.popen('free -m  | grep ^Swap | tr -s \' \' | cut -d \' \' -f4').read())
         time.sleep(1)
 
 def run_command():
@@ -41,9 +50,8 @@ def run_command():
 def run_top():
     global top
     while(1):
-        os.popen('top -b -n 1 > top_out.txt')
+        top = os.popen('top -b -n 1 > top_out.txt && cat top_out.txt').read()
         time.sleep(1.5)
-        top = os.popen('cat top_out.txt').read()
         # sed '2q;d' top_out.txt - pega a linha 2 do top
 
 def get_hardware_info():
@@ -79,7 +87,7 @@ app.layout = html.Div(
         html.Tbody(id='main-container'),
         dcc.Interval(
             id='interval-component',
-            interval=1*3000, # in milliseconds
+            interval=3*1000, # in milliseconds
             n_intervals=0
         )
     ])
@@ -91,6 +99,9 @@ def get_memory_info_container():
         html.Div(f'Memória livre: {memory["free"]:.1f} MB'),
         html.Div(f'Memória utilizada: {memory["used"]:.1f} MB'),
         html.Div(f'Memória cache/buffer: {memory["cache"]:.1f} MB'),
+        html.Div(f'Swap total: {swap["total"]:.1f} MB'),
+        html.Div(f'Swap livre: {swap["free"]:.1f} MB'),
+        html.Div(f'Swap utilizado: {swap["used"]:.1f} MB'),
         dcc.Graph(id="graph"),
     ], className='info-container')
 
@@ -141,7 +152,7 @@ def generate_chart(n):
             l=0,
             r=0,
             b=0,
-            t=50,
+            t=30,
             pad=0
         ),
     )
