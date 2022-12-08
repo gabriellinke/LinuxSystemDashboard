@@ -24,6 +24,7 @@ swap = {}
 # lsusb
 # sysinfo - uptime e loadavg - acho que já temos essas infos do top
 # Uso de disco - df -> fazer gŕafico com percentual usado de cada disco - qual o disco, se é HD ou SSD
+# Para saber se é SSD ou HD: 'cat /sys/block/sda/queue/rotational' ou 'lsblk -d -o name,rota'
 
 def update_memory_info():
     global meminfo
@@ -89,7 +90,8 @@ app.layout = html.Div(
             id='interval-component',
             interval=3*1000, # in milliseconds
             n_intervals=0
-        )
+        ),
+        html.Div(id='hidden-div', style={'display':'none'}),
     ])
 )
 
@@ -118,6 +120,7 @@ def get_hardware_and_system_info_container():
         html.Div(f'Versão de lançamento do Kernel: {system_info["kernel-release"]}'),
         html.Div(f'Data de criação do Kernel: {system_info["kernel-version"]}'),
         html.Div(f'Sistema operacional: {system_info["operating-system"]}'),
+        html.Div([html.Button('Abrir terminal', id='terminal-button', n_clicks=0)], className='button-container'),
     ], className='info-container')
 
 @app.callback(Output('main-container', 'children'),
@@ -157,6 +160,15 @@ def generate_chart(n):
         ),
     )
     return fig
+
+@app.callback(
+    Output('hidden-div', 'children'),
+    Input('terminal-button', 'n_clicks'),
+)
+def openTerminal(btn1):
+    if(btn1 > 0):
+        os.popen('cd && gnome-terminal')
+    return None
 
 if __name__ == '__main__':
     app.run_server(debug=True)
