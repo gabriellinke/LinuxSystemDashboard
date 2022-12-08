@@ -59,3 +59,16 @@ div.button-container {
     justify-content: center;
     margin-top: 16px;
 }
+
+div.proccess-container-row {
+    display: flex;
+    flex-direction: row;
+}
+
+div.proccess-container {
+    display: flex;
+    flex-direction: column;
+    margin-right: 8px;
+    width: 80px;
+    align-items: center;
+}

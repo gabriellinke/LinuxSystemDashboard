@@ -11,10 +11,11 @@ import time
 import os
 import plotly.express as px
 import plotly.graph_objects as go
+import re
 
 meminfo = ""
 command = ""
-top = ""
+ps_aux = ""
 hardware_info = {}
 system_info = {}
 memory = {}
@@ -48,11 +49,11 @@ def run_command():
         command = os.popen('ls /proc').read()
         time.sleep(1)
 
-def run_top():
-    global top
+def run_ps_aux():
+    global ps_aux
     while(1):
-        top = os.popen('top -b -n 1 > top_out.txt && cat top_out.txt').read()
-        time.sleep(1.5)
+        ps_aux = os.popen('ps aux --sort=-pcpu').read()
+        time.sleep(1)
         # sed '2q;d' top_out.txt - pega a linha 2 do top
 
 def get_hardware_info():
@@ -76,8 +77,8 @@ meminfoThread = threading.Thread(target=update_memory_info)
 meminfoThread.start()
 commandThread = threading.Thread(target=run_command)
 commandThread.start()
-topThread = threading.Thread(target=run_top)
-topThread.start()
+ps_auxThread = threading.Thread(target=run_ps_aux)
+ps_auxThread.start()
 get_hardware_info()
 get_system_info()
 
@@ -94,6 +95,28 @@ app.layout = html.Div(
         html.Div(id='hidden-div', style={'display':'none'}),
     ])
 )
+
+def get_proccess_container():
+    global ps_aux
+    proccesses = ps_aux.split('\n')
+    proccesses_list = []
+    for proc in proccesses:
+        text = re.sub('\s+',' ', proc).split(' ')
+        if(len(text) > 1):
+            proccesses_list.append(html.Div([
+                html.Div(f'{text[0]}', className='proccess-container'),
+                html.Div(f'{text[1]}', className='proccess-container'),
+                html.Div(f'{text[2]}', className='proccess-container'),
+                html.Div(f'{text[3]}', className='proccess-container'),
+                html.Div(f'{text[7]}', className='proccess-container'),
+                html.Div(f'{text[8]}', className='proccess-container'),
+                html.Div(f'{text[9]}', className='proccess-container'),
+            ], className='proccess-container-row'))
+    return html.Div([
+        html.Div('Processos'),
+        html.Div(proccesses_list),
+    ], className='info-container-long')
+
 
 def get_memory_info_container():
     return html.Div([
@@ -128,11 +151,11 @@ def get_hardware_and_system_info_container():
 def update_info(n):
     return [
         html.Div([
-            html.Div('Processos:', className='info-container-long')
+            get_proccess_container(),
         ]),
         html.Div([
             html.Div(command, className='info-container'),
-            html.Div(top, className='info-container')
+            html.Div(ps_aux, className='info-container')
         ]),
         html.Div([
             get_memory_info_container(),
