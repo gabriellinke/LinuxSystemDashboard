@@ -9,6 +9,7 @@ import plotly
 import threading
 import time
 import os
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import re
@@ -133,8 +134,6 @@ def get_disk_info():
             aux_disk["partitions"].append(partition)
             partitions.append(partition)
         disk_info.append(aux_disk)
-    print(disk_info)
-    print(partitions)
 
 def get_system_info():
     global system_info
@@ -241,8 +240,40 @@ def get_disk_info_container():
             html.H3(f'Disco {disk["name"]} ({disk["type"]}) - {disk["size"]}'),
             html.Div(disk_partitions),
         ]))
+
+        # Pega os dados para o gráfico
+        names = []
+        types = []
+        percentages = []
+        for partition in partitions:
+            names.append(partition["name"])
+            names.append(partition["name"])
+            types.append('usado')
+            types.append('disponível')
+            percentage = re.match(r'\d+', partition["percentage"])
+            percentages.append(int(percentage[0]))
+            percentages.append(100 - int(percentage[0]))
+
+        # Cria o gráfico
+        d = {'Partição': names, 'Tipo': types, 'Porcentagem': percentages}
+        df = pd.DataFrame(data=d)
+        fig = px.bar(df, x="Porcentagem", y="Partição", color="Tipo", title="Uso das partições")
+        fig.update_xaxes(nticks=50, range=(0, 100),)
+        fig.update_layout(
+            autosize=False,
+            height=200,
+            margin=dict(
+                l=0,
+                r=0,
+                b=0,
+                t=25,
+                pad=0
+            ),
+        )
+
     return html.Div([
-        html.Div(disk_list)
+        html.Div(disk_list),
+        dcc.Graph(id="disk-graph", figure=fig),
     ], className='info-container')
 
 
