@@ -69,6 +69,33 @@ div.proccess-container {
     display: flex;
     flex-direction: column;
     margin-right: 8px;
-    width: 80px;
+    min-width: 80px;
     align-items: center;
+}
+
+div.partition-container-row {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 16px;
+}
+
+div.partition-container {
+    display: flex;
+    flex-direction: column;
+    margin-right: 8px;
+    width: 100px;
+    align-items: center;
+}
+
+div.partition-container-title {
+    display: flex;
+    width: 100px;
+    font-weight: bold;
+    text-align: center;
+}
+
+div.partition-container-value {
+    display: flex;
+    width: 100px;
+    text-align: center;
 }

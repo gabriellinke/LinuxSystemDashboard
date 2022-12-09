@@ -17,6 +17,8 @@ meminfo = ""
 command = ""
 ps_aux = ""
 hardware_info = {}
+disk_info = []
+partitions = []
 system_info = {}
 memory = {}
 swap = {}
@@ -26,6 +28,9 @@ swap = {}
 # sysinfo - uptime e loadavg - acho que já temos essas infos do top
 # Uso de disco - df -> fazer gŕafico com percentual usado de cada disco - qual o disco, se é HD ou SSD
 # Para saber se é SSD ou HD: 'cat /sys/block/sda/queue/rotational' ou 'lsblk -d -o name,rota'
+# lsblk -d -o name,rota | grep -v loop
+# df -h | grep sda
+# df -h | grep `lsblk -d -o name | grep -v loop | sed '2q;d'`
 
 def update_memory_info():
     global meminfo
@@ -62,6 +67,75 @@ def get_hardware_info():
     hardware_info["processor"] = os.popen('lshw -short | grep processor | tr -s \' \' | cut -d \' \' -f3- | sed \'1q;d\'').read()
     hardware_info["graphic"] = os.popen('lshw -short | grep display | tr -s \' \' | cut -d \' \' -f3- | sed \'1q;d\'').read()
 
+def get_partition_info_human_readable(partition):
+    part_size = partition["size"]
+    if(int(part_size) > 1024*1024):
+        partition["size_h"] = f'{int(part_size)/(1024*1024):.1f}G'
+    elif(int(part_size) > 1024):
+        partition["size_h"] = f'{int(part_size)/(1024):.1f}M'
+    else:
+        partition["size_h"] = f'{int(part_size):.1f}K'
+
+    part_used = partition["used"]
+    if(int(part_used) > 1024*1024):
+        partition["used_h"] = f'{int(part_used)/(1024*1024):.1f}G'
+    elif(int(part_used) > 1024):
+        partition["used_h"] = f'{int(part_used)/(1024):.1f}M'
+    else:
+        partition["used_h"] = f'{int(part_used):.1f}K'
+
+    part_available = partition["available"]
+    if(int(part_available) > 1024*1024):
+        partition["available_h"] = f'{int(part_available)/(1024*1024):.1f}G'
+    elif(int(part_available) > 1024):
+        partition["available_h"] = f'{int(part_available)/(1024):.1f}M'
+    else:
+        partition["available_h"] = f'{int(part_available):.1f}K'
+
+def get_disk_info():
+    global disk_info
+    global partitions
+    disks = os.popen('lsblk -d -o name,rota,size | grep -v loop').read().split('\n')
+    disks.pop(0)
+    disks.pop(len(disks)-1)
+    for disk in disks:
+        name = re.sub('\s+',' ', disk).split(' ')[0]
+        if(re.sub('\s+',' ', disk).split(' ')[1] == '1'):
+            disk_type = 'HD'
+        else:
+            disk_type = 'SSD'
+        disk_size = re.sub('\s+',' ', disk).split(' ')[2]
+        aux_disk = {}
+        aux_disk["name"] = name
+        aux_disk["type"] = disk_type
+        aux_disk["size"] = disk_size
+        aux_disk["partitions"] = []
+
+        diskInfo = os.popen(f'df | grep {name}').read().split('\n')
+        diskInfo.pop(len(diskInfo)-1)
+        for part in diskInfo:
+            part_name = re.sub('\s+',' ', part).split(' ')[0]
+            part_size = re.sub('\s+',' ', part).split(' ')[1]
+            part_used = re.sub('\s+',' ', part).split(' ')[2]
+            part_available = re.sub('\s+',' ', part).split(' ')[3]
+            part_percentage = re.sub('\s+',' ', part).split(' ')[4]
+            part_mount_point = re.sub('\s+',' ', part).split(' ')[5]
+            partition = {}
+            
+            partition["name"] = part_name
+            partition["size"] = part_size
+            partition["used"] = part_used
+            partition["available"] = part_available
+            partition["percentage"] = part_percentage
+            partition["mount_point"] = part_mount_point
+            get_partition_info_human_readable(partition)
+
+            aux_disk["partitions"].append(partition)
+            partitions.append(partition)
+        disk_info.append(aux_disk)
+    print(disk_info)
+    print(partitions)
+
 def get_system_info():
     global system_info
     system_info["kernel-name"] = os.popen('uname -s').read()
@@ -81,6 +155,7 @@ ps_auxThread = threading.Thread(target=run_ps_aux)
 ps_auxThread.start()
 get_hardware_info()
 get_system_info()
+get_disk_info()
 
 app = dash.Dash(__name__, suppress_callback_exceptions=True)
 app.layout = html.Div(
@@ -130,6 +205,47 @@ def get_memory_info_container():
         dcc.Graph(id="graph"),
     ], className='info-container')
 
+def get_disk_info_container():
+    global disk_info
+    disk_list = []
+    for disk in disk_info:
+        disk_partitions = []
+        for partition in disk["partitions"]:
+            disk_partitions.append(html.Div([
+                html.Div([
+                    html.Div('Partição', className='partition-container-title'),
+                    html.Div(f'{partition["name"]}', className='partition-container-value'),
+                ], className='partition-container'),
+                html.Div([
+                    html.Div('Tamanho', className='partition-container-title'),
+                    html.Div(f'{partition["size_h"]}', className='partition-container-value'),
+                ], className='partition-container'),
+                html.Div([
+                    html.Div('Usado', className='partition-container-title'),
+                    html.Div(f'{partition["used_h"]}', className='partition-container-value'),
+                ], className='partition-container'),
+                html.Div([
+                    html.Div('Disponível', className='partition-container-title'),
+                    html.Div(f'{partition["available_h"]}', className='partition-container-value'),
+                ], className='partition-container'),
+                html.Div([
+                    html.Div('Uso', className='partition-container-title'),
+                    html.Div(f'{partition["percentage"]}', className='partition-container-value'),
+                ], className='partition-container'),
+                html.Div([
+                    html.Div('Montado em', className='partition-container-title'),
+                    html.Div(f'{partition["mount_point"]}', className='partition-container-value'),
+                ], className='partition-container'),
+            ], className='partition-container-row'))
+        disk_list.append(html.Div([
+            html.H3(f'Disco {disk["name"]} ({disk["type"]}) - {disk["size"]}'),
+            html.Div(disk_partitions),
+        ]))
+    return html.Div([
+        html.Div(disk_list)
+    ], className='info-container')
+
+
 def get_hardware_and_system_info_container():
     return html.Div([
         html.H3('Informações de hardware e sistema', className='info-container-title'),
@@ -154,8 +270,8 @@ def update_info(n):
             get_proccess_container(),
         ]),
         html.Div([
-            html.Div(command, className='info-container'),
-            html.Div(ps_aux, className='info-container')
+            get_disk_info_container(),
+            html.Div(ps_aux, className='info-container'),
         ]),
         html.Div([
             get_memory_info_container(),
