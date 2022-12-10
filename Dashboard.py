@@ -152,20 +152,6 @@ get_hardware_info()
 get_system_info()
 get_disk_info()
 
-app = dash.Dash(__name__, suppress_callback_exceptions=True)
-app.layout = html.Div(
-    html.Div([
-        html.H1('Dashboard', id='title'),
-        html.Tbody(id='main-container'),
-        dcc.Interval(
-            id='interval-component',
-            interval=3*1000, # in milliseconds
-            n_intervals=0
-        ),
-        html.Div(id='hidden-div', style={'display':'none'}),
-    ])
-)
-
 def get_proccess_container():
     global ps_aux
     proccesses = ps_aux.split('\n')
@@ -182,13 +168,12 @@ def get_proccess_container():
                 html.Div(f'{text[8]}', className='proccess-container'),
                 html.Div(f'{text[9]}', className='proccess-container'),
             ], className='proccess-container-row'))
-    return html.Div([
-        html.H3('Processos', className='info-container-title'),
+    return [
         html.Div(proccesses_list),
-    ], className='info-container-long')
+    ]
 
 def get_memory_info_container():
-    return html.Div([
+    return [
         html.Div(f'Memória total: {memory["total"]:.1f} MB'),
         html.Div(f'Memória livre: {memory["free"]:.1f} MB'),
         html.Div(f'Memória utilizada: {memory["used"]:.1f} MB'),
@@ -196,8 +181,7 @@ def get_memory_info_container():
         html.Div(f'Swap total: {swap["total"]:.1f} MB'),
         html.Div(f'Swap livre: {swap["free"]:.1f} MB'),
         html.Div(f'Swap utilizado: {swap["used"]:.1f} MB'),
-        dcc.Graph(id="graph"),
-    ], className='info-container')
+    ]
 
 def get_disk_info_container():
     global disk_info
@@ -291,28 +275,58 @@ def get_usb_info_container():
     usbs_list = []
     for usb in connected_usbs:
         usbs_list.append(html.Div(f'{usb}'))
-    return html.Div([
+    return [
         html.H3('Dispositivos conectados nos barramentos USB', className='info-container-title'),
-        html.Div(usbs_list),
-    ], className='info-container')
-    
+        html.Div(usbs_list)
+    ]
 
-@app.callback(Output('main-container', 'children'),
+app = dash.Dash(__name__, suppress_callback_exceptions=True)
+app.layout = html.Div(
+    html.Div([
+        html.H1('Dashboard', id='title'),
+        html.Tbody([
+            html.Div([
+                html.Div([
+                    html.H3('Processos', className='info-container-title'),
+                    html.Div(id='proccess-container')
+                ], className='info-container-long')
+            ]),
+            html.Div([
+                get_disk_info_container(),
+                html.Div(className='info-container', id='usb-container')
+            ]),
+            html.Div([
+                html.Div([
+                    html.Div(id='memory-info-container'),
+                    dcc.Graph(id="graph"),
+                ], className='info-container'),
+                get_hardware_and_system_info_container(),
+            ])
+        ], id='main-container'),
+        dcc.Interval(
+            id='interval-component',
+            interval=1*1000, # in milliseconds
+            n_intervals=0
+        ),
+        html.Div(id='hidden-div', style={'display':'none'}),
+    ])
+)
+
+
+@app.callback(Output('usb-container', 'children'),
               Input('interval-component', 'n_intervals'))
 def update_info(n):
-    return [
-        html.Div([
-            get_proccess_container(),
-        ]),
-        html.Div([
-            get_disk_info_container(),
-            get_usb_info_container(),
-        ]),
-        html.Div([
-            get_memory_info_container(),
-            get_hardware_and_system_info_container(),
-        ])
-    ]
+    return get_usb_info_container()
+
+@app.callback(Output('memory-info-container', 'children'),
+              Input('interval-component', 'n_intervals'))
+def update_info(n):
+    return get_memory_info_container()
+
+@app.callback(Output('proccess-container', 'children'),
+              Input('interval-component', 'n_intervals'))
+def update_info(n):
+    return get_proccess_container()
 
 @app.callback(Output('graph', 'figure'),
               Input('interval-component', 'n_intervals'))
@@ -342,5 +356,4 @@ def openTerminal(btn1):
         os.popen('cd && gnome-terminal')
     return None
 
-if __name__ == '__main__':
-    app.run_server(debug=True)
+app.run_server(debug=False)
