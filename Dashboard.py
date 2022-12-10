@@ -14,8 +14,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import re
 
-meminfo = ""
-command = ""
 ps_aux = ""
 hardware_info = {}
 disk_info = []
@@ -23,6 +21,7 @@ partitions = []
 system_info = {}
 memory = {}
 swap = {}
+connected_usbs = []
 
 # date
 # lsusb
@@ -34,12 +33,9 @@ swap = {}
 # df -h | grep `lsblk -d -o name | grep -v loop | sed '2q;d'`
 
 def update_memory_info():
-    global meminfo
     global memory
+    global swap
     while(1):
-        with open('/proc/meminfo' , 'r') as live_key_file_loc:
-            live_token = live_key_file_loc.read()
-        meminfo = live_token
         memory["total"] = int(os.popen('free -m  | grep ^Mem | tr -s \' \' | cut -d \' \' -f2').read())
         memory["used"] = int(os.popen('free -m  | grep ^Mem | tr -s \' \' | cut -d \' \' -f3').read())
         memory["free"] = int(os.popen('free -m  | grep ^Mem | tr -s \' \' | cut -d \' \' -f4').read())
@@ -49,10 +45,11 @@ def update_memory_info():
         swap["free"] = int(os.popen('free -m  | grep ^Swap | tr -s \' \' | cut -d \' \' -f4').read())
         time.sleep(1)
 
-def run_command():
-    global command
+def update_usb_info():
+    global connected_usbs
     while(1):
-        command = os.popen('ls /proc').read()
+        connected_usbs = os.popen('lsusb').read().split('\n')
+        connected_usbs.pop(len(connected_usbs)-1)
         time.sleep(1)
 
 def run_ps_aux():
@@ -60,7 +57,6 @@ def run_ps_aux():
     while(1):
         ps_aux = os.popen('ps aux --sort=-pcpu').read()
         time.sleep(1)
-        # sed '2q;d' top_out.txt - pega a linha 2 do top
 
 def get_hardware_info():
     global hardware_info
@@ -148,8 +144,8 @@ def get_system_info():
 
 meminfoThread = threading.Thread(target=update_memory_info)
 meminfoThread.start()
-commandThread = threading.Thread(target=run_command)
-commandThread.start()
+usbThread = threading.Thread(target=update_usb_info)
+usbThread.start()
 ps_auxThread = threading.Thread(target=run_ps_aux)
 ps_auxThread.start()
 get_hardware_info()
@@ -187,10 +183,9 @@ def get_proccess_container():
                 html.Div(f'{text[9]}', className='proccess-container'),
             ], className='proccess-container-row'))
     return html.Div([
-        html.Div('Processos'),
+        html.H3('Processos', className='info-container-title'),
         html.Div(proccesses_list),
     ], className='info-container-long')
-
 
 def get_memory_info_container():
     return html.Div([
@@ -276,7 +271,6 @@ def get_disk_info_container():
         dcc.Graph(id="disk-graph", figure=fig),
     ], className='info-container')
 
-
 def get_hardware_and_system_info_container():
     return html.Div([
         html.H3('Informações de hardware e sistema', className='info-container-title'),
@@ -293,6 +287,16 @@ def get_hardware_and_system_info_container():
         html.Div([html.Button('Abrir terminal', id='terminal-button', n_clicks=0)], className='button-container'),
     ], className='info-container')
 
+def get_usb_info_container():
+    usbs_list = []
+    for usb in connected_usbs:
+        usbs_list.append(html.Div(f'{usb}'))
+    return html.Div([
+        html.H3('Dispositivos conectados nos barramentos USB', className='info-container-title'),
+        html.Div(usbs_list),
+    ], className='info-container')
+    
+
 @app.callback(Output('main-container', 'children'),
               Input('interval-component', 'n_intervals'))
 def update_info(n):
@@ -302,14 +306,13 @@ def update_info(n):
         ]),
         html.Div([
             get_disk_info_container(),
-            html.Div(ps_aux, className='info-container'),
+            get_usb_info_container(),
         ]),
         html.Div([
             get_memory_info_container(),
             get_hardware_and_system_info_container(),
         ])
     ]
-
 
 @app.callback(Output('graph', 'figure'),
               Input('interval-component', 'n_intervals'))
@@ -333,8 +336,7 @@ def generate_chart(n):
 
 @app.callback(
     Output('hidden-div', 'children'),
-    Input('terminal-button', 'n_clicks'),
-)
+    Input('terminal-button', 'n_clicks'))
 def openTerminal(btn1):
     if(btn1 > 0):
         os.popen('cd && gnome-terminal')
