@@ -268,7 +268,6 @@ def get_hardware_and_system_info_container():
         html.Div(f'Versão de lançamento do Kernel: {system_info["kernel-release"]}'),
         html.Div(f'Data de criação do Kernel: {system_info["kernel-version"]}'),
         html.Div(f'Sistema operacional: {system_info["operating-system"]}'),
-        html.Div([html.Button('Abrir terminal', id='terminal-button', n_clicks=0)], className='button-container'),
     ], className='info-container')
 
 def get_usb_info_container():
@@ -301,7 +300,8 @@ app.layout = html.Div(
                     dcc.Graph(id="graph"),
                 ], className='info-container'),
                 get_hardware_and_system_info_container(),
-            ])
+            ]),
+            html.Div([html.Button('>_', id='terminal-button', n_clicks=0)], className='floating_button')
         ], id='main-container'),
         dcc.Interval(
             id='interval-component',
